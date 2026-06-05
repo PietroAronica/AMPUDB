@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMPUDB – About</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="site-title">AMPUDB <span>· Antimicrobial Peptides with Unnatural amino acids DataBase</span></div>
+    <nav>
+      <a href="index.html">Browse</a>
+      <a href="glossary.html">Glossary</a>
+      <a href="about.html" class="active">About</a>
+      <a href="cite.html">Cite</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page">
+  <div class="card prose">
+    <h1>About AMPUDB</h1>
+
+    <h2>Overview</h2>
+    <p>
+      AMPUDB is a manually curated database of antimicrobial peptides (AMPs) that incorporate
+      unnatural amino acids (UAAs). It collects sequence, bioactivity, and chemical annotation
+      data from the primary literature, with the aim of making UAA-containing AMP data findable,
+      searchable, and reusable.
+    </p>
+    <p>
+      The database currently contains <strong>349 entries</strong> drawn from
+      peer-reviewed publications. Each entry is linked to its primary reference via DOI.
+    </p>
+
+    <h2>Scope</h2>
+    <p>
+      AMPUDB focuses specifically on peptides in which at least one residue is an unnatural
+      amino acid (UAA) — including D-amino acids, β-amino acids, N-methylated residues, peptoid
+      residues, unusual side-chain modifications, and fatty acid conjugates. Natural AMPs
+      without UAA incorporation are included only as parent sequences for context.
+    </p>
+
+    <h2>Data fields</h2>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>DIN</td><td>Database Identity Number — stable unique identifier</td></tr>
+      <tr><td>Sequence</td><td>Peptide sequence using one-letter codes; UAA residues in parentheses</td></tr>
+      <tr><td>Name</td><td>Name used in the source publication</td></tr>
+      <tr><td>Unnatural Amino Acid(s)</td><td>Semicolon-separated list of UAA codes (see Glossary)</td></tr>
+      <tr><td>Length</td><td>Total residue count</td></tr>
+      <tr><td>Charge</td><td>Net formal charge at physiological pH</td></tr>
+      <tr><td>Spectrum</td><td>Antimicrobial spectrum derived from tested organisms</td></tr>
+      <tr><td>Activity</td><td>Categorical activity: active (MIC ≤ 64), weakly active (&gt; 64), inactive</td></tr>
+      <tr><td>MIC_min_reported</td><td>Minimum MIC value as reported in the source paper (units vary; see MIC field)</td></tr>
+      <tr><td>MIC</td><td>Full MIC range as reported, including units</td></tr>
+      <tr><td>Ref</td><td>DOI of the primary reference</td></tr>
+      <tr><td>Parent / Name of Parent</td><td>Sequence and name of the natural parent peptide, where applicable</td></tr>
+      <tr><td>Tested Against</td><td>Species assayed, standardised to full binomial nomenclature with strain identifiers</td></tr>
+      <tr><td>MIC Notes</td><td>Per-species MIC values and source table information</td></tr>
+      <tr><td>Annotation</td><td>Curator notes on structure, design rationale, or unusual features</td></tr>
+    </table>
+
+    <h2>UAA Glossary</h2>
+    <p>
+      All unnatural amino acid codes used in AMPUDB are defined in the
+      <a href="glossary.html">UAA Glossary</a>, which lists the full chemical name
+      and classification flags (D-amino acid, peptoid, charge, α-amino acid) for each code.
+    </p>
+
+    <h2>Data availability</h2>
+    <p>
+      The complete dataset is available for download from the
+      <a href="index.html">Browse page</a> (CSV button) and will be deposited in a
+      public repository upon publication. The database is updated periodically as new
+      literature becomes available.
+    </p>
+
+    <h2>Authors</h2>
+    <p style="color:var(--text-muted);font-style:italic;">
+      Author information will be added upon publication.
+    </p>
+
+    <h2>Contact</h2>
+    <p style="color:var(--text-muted);font-style:italic;">
+      Contact information will be added upon publication.
+    </p>
+  </div>
+</div>
+
+<footer>
+  AMPUDB · <a href="cite.html">How to cite</a>
+</footer>
+</body>
+</html>

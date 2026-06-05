@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMPUDB – How to Cite</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="site-title">AMPUDB <span>· Antimicrobial Peptides with Unnatural amino acids DataBase</span></div>
+    <nav>
+      <a href="index.html">Browse</a>
+      <a href="glossary.html">Glossary</a>
+      <a href="about.html">About</a>
+      <a href="cite.html" class="active">Cite</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page">
+  <div class="card prose">
+    <h1>How to Cite AMPUDB</h1>
+
+    <p>
+      If you use AMPUDB in your research, please cite the primary publication
+      (details will be added upon acceptance):
+    </p>
+
+    <div class="code-block" id="citation-text">
+[Authors]. AMPUDB: a database of antimicrobial peptides containing unnatural amino acids.
+Nucleic Acids Research, [Year]. DOI: [pending]
+    </div>
+    <button class="btn" onclick="copyCitation()">⧉ Copy citation</button>
+
+    <h2>BibTeX</h2>
+    <div class="code-block">
+@article{ampudb,
+  title   = {{AMPUDB}: a database of antimicrobial peptides containing
+             unnatural amino acids},
+  author  = {[Authors]},
+  journal = {Nucleic Acids Research},
+  year    = {[Year]},
+  doi     = {[pending]}
+}
+    </div>
+
+    <h2>Data citation</h2>
+    <p>
+      If you download and use the dataset directly, please also cite the
+      data deposit (DOI pending) in addition to the paper.
+    </p>
+
+    <h2>Database URL</h2>
+    <div class="code-block">https://PietroAronica.github.io/AMPUDB/</div>
+
+    <h2>Licence</h2>
+    <p>
+      The AMPUDB dataset is made available under the
+      <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">
+      Creative Commons Attribution 4.0 International (CC BY 4.0)</a> licence.
+      You are free to share and adapt the data for any purpose, provided you
+      give appropriate credit.
+    </p>
+  </div>
+</div>
+
+<footer>
+  AMPUDB · Data provided under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">CC BY 4.0</a>
+</footer>
+
+<script>
+function copyCitation() {
+  const text = document.getElementById('citation-text').innerText.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '⧉ Copy citation', 2000);
+  });
+}
+</script>
+</body>
+</html>

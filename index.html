@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMPUDB – Browse</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="site-title">AMPUDB <span>· Antimicrobial Peptides with Unnatural amino acids DataBase</span></div>
+    <nav>
+      <a href="index.html" class="active">Browse</a>
+      <a href="glossary.html">Glossary</a>
+      <a href="about.html">About</a>
+      <a href="cite.html">Cite</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page">
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="controls">
+      <div class="search-wrap">
+        <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="search" placeholder="Search by name, sequence, UAA code, annotation…" autocomplete="off">
+      </div>
+      <select id="filter-spectrum">
+        <option value="">All spectra</option>
+        <option>Broad-spectrum</option>
+        <option>Broad-spectrum + fungal</option>
+        <option>Gram-positive</option>
+        <option>Gram-negative</option>
+        <option>Gram-positive + fungal</option>
+        <option>Gram-negative + fungal</option>
+        <option>Fungal</option>
+      </select>
+      <select id="filter-activity">
+        <option value="">All activity</option>
+        <option>active</option>
+        <option>weakly active</option>
+        <option>inactive</option>
+      </select>
+      <select id="filter-uaa-cat">
+        <option value="">All UAA categories</option>
+      </select>
+      <div class="search-wrap" style="max-width:260px;">
+        <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="filter-organism" placeholder="Filter by organism…" autocomplete="off">
+      </div>
+      <button class="btn" id="btn-reset">✕ Reset</button>
+      <button class="btn btn-primary" id="btn-download">↓ CSV (filtered)</button>
+      <button class="btn" id="btn-download-all">↓ CSV (all)</button>
+      <span class="results-info" id="results-info"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table id="main-table">
+        <thead>
+          <tr>
+            <th data-col="DIN">#</th>
+            <th data-col="Name">Name</th>
+            <th data-col="Sequence">Sequence</th>
+            <th data-col="Unnatural Amino Acid(s)">UAAs</th>
+            <th data-col="Length">Len</th>
+            <th data-col="Charge">Chr</th>
+            <th data-col="Spectrum">Spectrum</th>
+            <th data-col="Activity">Activity</th>
+            <th data-col="MIC_min_reported">MIC min</th>
+            <th data-col="Ref">DOI</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <h2 id="modal-title">Entry detail</h2>
+      <button class="modal-close" id="modal-close" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <a id="modal-doi-link" class="btn btn-primary" target="_blank" rel="noopener">Open DOI ↗</a>
+      <a id="modal-pubmed-link" class="btn" target="_blank" rel="noopener">PubMed ↗</a>
+      <button class="btn" id="modal-close2">Close</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  AMPUDB · Data provided under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">CC BY 4.0</a> ·
+  <a href="cite.html">How to cite</a>
+</footer>
+
+<script>
+let ALL = [];
+let GMAP = {};    // UAA code → glossary entry
+let CATMAP = {};  // category → Set of UAA codes
+let filtered = [];
+let sortCol = 'DIN';
+let sortDir = 1;
+
+function spectrumBadge(s) {
+  if (!s) return '<span class="badge badge-empty">—</span>';
+  const cls = s.startsWith('Broad') ? 'broad'
+             : s.startsWith('Gram-positive') ? 'gpos'
+             : s.startsWith('Gram-negative') ? 'gneg'
+             : s.includes('ungal') ? 'fungal' : 'mixed';
+  return `<span class="badge badge-${cls}">${s}</span>`;
+}
+function activityBadge(a) {
+  if (!a) return '<span class="badge badge-empty">—</span>';
+  const cls = a === 'active' ? 'active' : a === 'weakly active' ? 'weakly' : 'inactive';
+  return `<span class="badge badge-${cls}">${a}</span>`;
+}
+function truncSeq(s, n=32) {
+  return s.length > n ? s.slice(0,n) + '…' : s;
+}
+function doiLink(ref) {
+  if (!ref) return '—';
+  return `<a href="https://doi.org/${ref}" target="_blank" rel="noopener" title="${ref}"
+    onclick="event.stopPropagation()">↗</a>`;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-muted)">No entries match your search.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(e => `
+    <tr data-din="${e.DIN}">
+      <td class="din">${e.DIN}</td>
+      <td class="name">${e.Name}</td>
+      <td class="seq">${truncSeq(e.Sequence)}</td>
+      <td class="nnaa">${e['Unnatural Amino Acid(s)']}</td>
+      <td>${e.Length}</td>
+      <td>${e.Charge}</td>
+      <td>${spectrumBadge(e.Spectrum)}</td>
+      <td>${activityBadge(e.Activity)}</td>
+      <td class="mic">${e.MIC_min_reported || '—'}</td>
+      <td class="ref">${doiLink(e.Ref)}</td>
+    </tr>`).join('');
+
+  tbody.querySelectorAll('tr[data-din]').forEach(row => {
+    row.addEventListener('click', () => openModal(row.dataset.din));
+  });
+}
+
+function updateInfo() {
+  document.getElementById('results-info').textContent =
+    `${filtered.length} of ${ALL.length} entries`;
+}
+
+function applyFilters() {
+  const q      = document.getElementById('search').value.trim().toLowerCase();
+  const sp     = document.getElementById('filter-spectrum').value;
+  const ac     = document.getElementById('filter-activity').value;
+  const org    = document.getElementById('filter-organism').value.trim().toLowerCase();
+  const uaaCat = document.getElementById('filter-uaa-cat').value;
+
+  // Codes that belong to the selected category
+  const catCodes = uaaCat ? (CATMAP[uaaCat] || new Set()) : null;
+
+  filtered = ALL.filter(e => {
+    if (sp && e.Spectrum !== sp) return false;
+    if (ac && e.Activity !== ac) return false;
+    if (org) {
+      const tested = (e['Tested Against'] || '').toLowerCase();
+      if (!tested.includes(org)) return false;
+    }
+    if (catCodes) {
+      const codes = (e['Unnatural Amino Acid(s)'] || '').split(';').map(c => c.trim()).filter(Boolean);
+      if (!codes.some(c => catCodes.has(c))) return false;
+    }
+    if (q) {
+      const hay = [e.Name, e.Sequence, e['Unnatural Amino Acid(s)'],
+                   e.Annotation, e['MIC Notes'], e.Ref].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a,b) => {
+    let av = a[sortCol] || '', bv = b[sortCol] || '';
+    const an = parseFloat(av), bn = parseFloat(bv);
+    if (!isNaN(an) && !isNaN(bn)) return (an - bn) * sortDir;
+    return av.localeCompare(bv) * sortDir;
+  });
+
+  renderTable();
+  updateInfo();
+}
+
+// Sorting
+document.querySelectorAll('thead th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+    document.querySelectorAll('thead th').forEach(t => t.classList.remove('sorted-asc','sorted-desc'));
+    th.classList.add(sortDir === 1 ? 'sorted-asc' : 'sorted-desc');
+    applyFilters();
+  });
+});
+
+// Debounced search
+let debounceTimer;
+document.getElementById('search').addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(applyFilters, 180);
+});
+document.getElementById('filter-spectrum').addEventListener('change', applyFilters);
+document.getElementById('filter-activity').addEventListener('change', applyFilters);
+document.getElementById('filter-uaa-cat').addEventListener('change', applyFilters);
+let debounceOrgTimer;
+document.getElementById('filter-organism').addEventListener('input', () => {
+  clearTimeout(debounceOrgTimer);
+  debounceOrgTimer = setTimeout(applyFilters, 180);
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+  document.getElementById('search').value = '';
+  document.getElementById('filter-spectrum').value = '';
+  document.getElementById('filter-activity').value = '';
+  document.getElementById('filter-uaa-cat').value = '';
+  document.getElementById('filter-organism').value = '';
+  applyFilters();
+});
+
+// CSV download helper
+function downloadCSV(rows, filename) {
+  const cols = ['DIN','Sequence','Name','Unnatural Amino Acid(s)','Length','Charge',
+                'Spectrum','Activity','MIC_min_reported','MIC','Ref',
+                'Parent','Name of Parent','Tested Against','MIC Notes','Annotation'];
+  const escape = v => '"' + (v||'').replace(/"/g,'""') + '"';
+  const lines = [cols.map(escape).join(',')];
+  rows.forEach(e => lines.push(cols.map(c => escape(e[c])).join(',')));
+  const blob = new Blob(['﻿' + lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+document.getElementById('btn-download').addEventListener('click', () => {
+  downloadCSV(filtered, 'AMPUDB_filtered.csv');
+});
+document.getElementById('btn-download-all').addEventListener('click', () => {
+  downloadCSV(ALL, 'AMPUDB_all.csv');
+});
+
+// Modal
+function openModal(din) {
+  const e = ALL.find(x => x.DIN === din);
+  if (!e) return;
+  document.getElementById('modal-title').textContent = `${e.Name} (DIN ${e.DIN})`;
+  const doiLink = document.getElementById('modal-doi-link');
+  if (e.Ref) { doiLink.href = 'https://doi.org/' + e.Ref; doiLink.style.display=''; }
+  else doiLink.style.display = 'none';
+  const pmLink = document.getElementById('modal-pubmed-link');
+  if (e.Ref) { pmLink.href = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(e.Ref); pmLink.style.display=''; }
+  else pmLink.style.display = 'none';
+
+  const row = (label, val, full=false, extra='') =>
+    `<div class="detail-item${full?' full':''}">
+      <label>${label}</label>
+      <div class="val ${extra}">${val||'—'}</div>
+    </div>`;
+
+  const flag = e.Search_flag
+    ? `<div class="flag-banner">⚠ ${e.Search_flag}</div>` : '';
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="detail-grid">
+      ${row('DIN', e.DIN)}
+      ${row('Name', e.Name)}
+      ${row('Sequence', e.Sequence, true, 'seq-full')}
+      ${row('Unnatural Amino Acids', e['Unnatural Amino Acid(s)'])}
+      ${row('Length', e.Length)}
+      ${row('Charge', e.Charge)}
+      ${row('Spectrum', spectrumBadge(e.Spectrum))}
+      ${row('Activity', activityBadge(e.Activity))}
+      ${row('MIC (min reported)', e.MIC_min_reported)}
+      ${row('MIC (full text)', e.MIC)}
+      ${row('Parent sequence', e.Parent || '—', true, 'seq-full')}
+      ${row('Parent name', e['Name of Parent'])}
+      ${row('Tested against', e['Tested Against'], true)}
+      ${row('MIC notes', e['MIC Notes'], true)}
+      ${row('Annotation', e.Annotation, true)}
+      ${row('Reference (DOI)', e.Ref ? `<a href="https://doi.org/${e.Ref}" target="_blank" rel="noopener">${e.Ref}</a>` : '—')}
+    </div>
+    ${flag}`;
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('modal-close').focus();
+}
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-close2').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// Load data
+Promise.all([
+  fetch('data/entries.json').then(r => r.json()),
+  fetch('data/glossary.json').then(r => r.json())
+]).then(([entries, glossary]) => {
+  ALL = entries;
+
+  // Build GMAP and CATMAP
+  glossary.forEach(g => {
+    GMAP[g.Code] = g;
+    (g.Categories || []).forEach(cat => {
+      if (!CATMAP[cat]) CATMAP[cat] = new Set();
+      CATMAP[cat].add(g.Code);
+    });
+  });
+
+  // Populate category dropdown with sorted unique categories
+  const sel = document.getElementById('filter-uaa-cat');
+  Object.keys(CATMAP).sort().forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat + ' (' + CATMAP[cat].size + ')';
+    sel.appendChild(opt);
+  });
+
+  applyFilters();
+}).catch(() => {
+  document.getElementById('table-body').innerHTML =
+    '<tr><td colspan="10" style="text-align:center;padding:2rem;color:red">Failed to load data. Make sure you are serving this page via a web server (not opening as a local file).</td></tr>';
+});
+</script>
+</body>
+</html>

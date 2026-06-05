@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMPUDB – UAA Glossary</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="site-title">AMPUDB <span>· Antimicrobial Peptides with Unnatural amino acids DataBase</span></div>
+    <nav>
+      <a href="index.html">Browse</a>
+      <a href="glossary.html" class="active">Glossary</a>
+      <a href="about.html">About</a>
+      <a href="cite.html">Cite</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page">
+  <div class="card" style="margin-bottom:1rem;">
+    <div style="margin-bottom:.75rem;">
+      <strong>UAA Glossary</strong>
+      <span style="color:var(--text-muted);font-size:.875rem;margin-left:.5rem;">
+        Non-natural amino acid codes and classifications used in AMPUDB
+      </span>
+    </div>
+    <div class="controls">
+      <div class="search-wrap" style="max-width:380px;">
+        <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="g-search" placeholder="Search code, name, alias…" autocomplete="off">
+      </div>
+      <select id="g-filter-cat">
+        <option value="">All categories</option>
+      </select>
+      <span class="results-info" id="g-results-info"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table id="g-table">
+        <thead>
+          <tr>
+            <th data-col="Code">Code</th>
+            <th data-col="Name">Name</th>
+            <th data-col="DAA"  style="text-align:center">DAA</th>
+            <th data-col="Peptoid" style="text-align:center">Peptoid</th>
+            <th data-col="Charge" style="text-align:center">Charged</th>
+            <th data-col="Alpha amino acid" style="text-align:center">α-AA</th>
+            <th data-col="Categories">Categories</th>
+          </tr>
+        </thead>
+        <tbody id="g-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- UAA detail panel (shown when a UAA row is clicked) -->
+  <div class="card" id="g-peptide-panel" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+      <strong id="g-panel-title"></strong>
+      <button class="btn" id="g-panel-close" style="padding:.25rem .6rem;font-size:.8rem;">✕ Close</button>
+    </div>
+
+    <!-- Categories for this UAA -->
+    <div id="g-panel-cats-wrap" style="margin-bottom:1rem;display:none;">
+      <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.4rem;">Categories</div>
+      <div id="g-panel-cats"></div>
+    </div>
+
+    <!-- Sibling UAAs in same categories -->
+    <div id="g-panel-siblings-wrap" style="margin-bottom:1.25rem;display:none;">
+      <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.4rem;">Related UAAs (same category)</div>
+      <div id="g-panel-siblings"></div>
+    </div>
+
+    <!-- Peptides containing this UAA -->
+    <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.4rem;" id="g-panel-pep-label"></div>
+    <p id="g-panel-none" style="color:var(--text-muted);display:none;">No entries use this UAA code.</p>
+    <div class="table-wrap" id="g-panel-wrap" style="display:none;">
+      <table id="g-panel-table">
+        <thead>
+          <tr>
+            <th>DIN</th>
+            <th>Name</th>
+            <th>Sequence</th>
+            <th>Spectrum</th>
+            <th>Activity</th>
+          </tr>
+        </thead>
+        <tbody id="g-panel-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<footer>
+  AMPUDB · <a href="cite.html">How to cite</a>
+</footer>
+
+<script>
+let GALL = [];
+let EALL = [];    // all peptide entries (for cross-links)
+let GMAP = {};    // code → glossary entry
+let CATMAP = {};  // category → [codes]
+let gFiltered = [];
+let gSortCol = 'Code';
+let gSortDir = 1;
+let activePanelCode = null;
+
+function dot(val, color='var(--primary)') {
+  return val === '1'
+    ? `<span class="flag-dot dot-yes" style="background:${color}"></span>`
+    : `<span class="flag-dot dot-no"></span>`;
+}
+
+function catTags(cats, clickable=false) {
+  if (!cats || cats.length === 0) return '<span style="color:var(--text-muted);font-size:.8rem;">—</span>';
+  return cats.map(c =>
+    clickable
+      ? `<span class="cat-tag cat-tag-btn" data-cat="${c}" title="Filter by ${c}">${c}</span>`
+      : `<span class="cat-tag">${c}</span>`
+  ).join('');
+}
+
+function renderGlossary() {
+  const tbody = document.getElementById('g-body');
+  if (gFiltered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">No entries match.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = gFiltered.map(g => `
+    <tr data-code="${g.Code.replace(/"/g,'&quot;')}" class="clickable-row${g.Code === activePanelCode ? ' row-active' : ''}" title="Click to explore ${g.Code}">
+      <td><strong style="font-family:monospace">${g.Code}</strong></td>
+      <td>${g.Name}</td>
+      <td style="text-align:center">${dot(g.DAA, '#7c3aed')}</td>
+      <td style="text-align:center">${dot(g.Peptoid, '#0891b2')}</td>
+      <td style="text-align:center">${dot(g.Charge, '#b45309')}</td>
+      <td style="text-align:center">${dot(g['Alpha amino acid'], '#166534')}</td>
+      <td>${catTags(g.Categories)}</td>
+    </tr>`).join('');
+
+  tbody.querySelectorAll('tr[data-code]').forEach(row => {
+    row.addEventListener('click', () => showPanel(row.dataset.code));
+  });
+}
+
+function applyGFilters() {
+  const q   = document.getElementById('g-search').value.trim().toLowerCase();
+  const cat = document.getElementById('g-filter-cat').value;
+  const catSet = cat ? new Set(CATMAP[cat] || []) : null;
+
+  gFiltered = GALL.filter(g => {
+    if (catSet && !catSet.has(g.Code)) return false;
+    if (q) {
+      const hay = [g.Code, g.Name, g.Aliases || '', (g.Categories||[]).join(' ')].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  gFiltered.sort((a,b) => {
+    let av = gSortCol === 'Categories'
+      ? (a.Categories||[]).join('|')
+      : (a[gSortCol]||'');
+    let bv = gSortCol === 'Categories'
+      ? (b.Categories||[]).join('|')
+      : (b[gSortCol]||'');
+    return av.localeCompare(bv) * gSortDir;
+  });
+
+  renderGlossary();
+  document.getElementById('g-results-info').textContent =
+    `${gFiltered.length} of ${GALL.length} entries`;
+}
+
+document.querySelectorAll('#g-table thead th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (gSortCol === col) gSortDir *= -1; else { gSortCol = col; gSortDir = 1; }
+    document.querySelectorAll('#g-table thead th').forEach(t => t.classList.remove('sorted-asc','sorted-desc'));
+    th.classList.add(gSortDir === 1 ? 'sorted-asc' : 'sorted-desc');
+    applyGFilters();
+  });
+});
+
+let gt;
+document.getElementById('g-search').addEventListener('input', () => {
+  clearTimeout(gt); gt = setTimeout(applyGFilters, 180);
+});
+document.getElementById('g-filter-cat').addEventListener('change', applyGFilters);
+
+// ── Badge helpers ─────────────────────────────────────────────────────────────
+function spectrumBadge(s) {
+  if (!s) return '<span class="badge badge-empty">—</span>';
+  const cls = s.startsWith('Broad') ? 'broad'
+             : s.startsWith('Gram-positive') ? 'gpos'
+             : s.startsWith('Gram-negative') ? 'gneg'
+             : s.includes('ungal') ? 'fungal' : 'mixed';
+  return `<span class="badge badge-${cls}">${s}</span>`;
+}
+function activityBadge(a) {
+  if (!a) return '<span class="badge badge-empty">—</span>';
+  const cls = a === 'active' ? 'active' : a === 'weakly active' ? 'weakly' : 'inactive';
+  return `<span class="badge badge-${cls}">${a}</span>`;
+}
+function truncSeq(s, n=40) {
+  return s && s.length > n ? s.slice(0,n) + '…' : (s||'—');
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+function showPanel(code) {
+  if (activePanelCode === code) { closePanel(); return; }
+  activePanelCode = code;
+  applyGFilters(); // update row-active highlight
+
+  const g = GMAP[code];
+  const cats = (g && g.Categories) || [];
+
+  // Header
+  const gName = g ? g.Name : code;
+  document.getElementById('g-panel-title').textContent = `${code} — ${gName}`;
+
+  // Categories section
+  const catsWrap = document.getElementById('g-panel-cats-wrap');
+  const catsEl   = document.getElementById('g-panel-cats');
+  if (cats.length > 0) {
+    catsEl.innerHTML = catTags(cats, true);
+    catsWrap.style.display = '';
+    // Allow clicking a category tag to set the filter
+    catsEl.querySelectorAll('.cat-tag-btn').forEach(tag => {
+      tag.addEventListener('click', () => {
+        document.getElementById('g-filter-cat').value = tag.dataset.cat;
+        applyGFilters();
+      });
+    });
+  } else {
+    catsWrap.style.display = 'none';
+  }
+
+  // Siblings section: group other UAAs by shared category
+  const siblingsWrap = document.getElementById('g-panel-siblings-wrap');
+  const siblingsEl   = document.getElementById('g-panel-siblings');
+  if (cats.length > 0) {
+    let siblingsHtml = '';
+    cats.forEach(cat => {
+      const siblings = (CATMAP[cat] || [])
+        .filter(c => c !== code)
+        .sort();
+      if (siblings.length === 0) return;
+      const MAX_SHOW = 12;
+      const shown = siblings.slice(0, MAX_SHOW);
+      const extra = siblings.length - MAX_SHOW;
+      siblingsHtml += `
+        <div style="margin-bottom:.6rem;">
+          <span class="cat-tag" style="margin-right:.4rem;">${cat}</span>
+          ${shown.map(c => `<a class="sibling-link" href="#" data-code="${c}" title="${GMAP[c]?GMAP[c].Name:c}">${c}</a>`).join('')}
+          ${extra > 0 ? `<span style="color:var(--text-muted);font-size:.8rem;"> +${extra} more</span>` : ''}
+        </div>`;
+    });
+    if (siblingsHtml) {
+      siblingsEl.innerHTML = siblingsHtml;
+      siblingsWrap.style.display = '';
+      siblingsEl.querySelectorAll('.sibling-link').forEach(a => {
+        a.addEventListener('click', ev => { ev.preventDefault(); showPanel(a.dataset.code); });
+      });
+    } else {
+      siblingsWrap.style.display = 'none';
+    }
+  } else {
+    siblingsWrap.style.display = 'none';
+  }
+
+  // Peptides section
+  const matches = EALL.filter(e =>
+    (e['Unnatural Amino Acid(s)'] || '').split(';').map(c => c.trim()).includes(code)
+  );
+  document.getElementById('g-panel-pep-label').textContent =
+    `Peptides containing ${code} (${matches.length})`;
+  const noneEl = document.getElementById('g-panel-none');
+  const wrapEl = document.getElementById('g-panel-wrap');
+  if (matches.length === 0) {
+    noneEl.style.display = '';
+    wrapEl.style.display = 'none';
+  } else {
+    noneEl.style.display = 'none';
+    wrapEl.style.display = '';
+    document.getElementById('g-panel-body').innerHTML = matches.map(e => `
+      <tr>
+        <td class="din">${e.DIN}</td>
+        <td class="name">${e.Name}</td>
+        <td class="seq" style="font-family:monospace;font-size:.8rem">${truncSeq(e.Sequence)}</td>
+        <td>${spectrumBadge(e.Spectrum)}</td>
+        <td>${activityBadge(e.Activity)}</td>
+      </tr>`).join('');
+  }
+
+  const panel = document.getElementById('g-peptide-panel');
+  panel.style.display = '';
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function closePanel() {
+  activePanelCode = null;
+  document.getElementById('g-peptide-panel').style.display = 'none';
+  applyGFilters();
+}
+
+document.getElementById('g-panel-close').addEventListener('click', closePanel);
+
+// ── Load data ─────────────────────────────────────────────────────────────────
+Promise.all([
+  fetch('data/glossary.json').then(r => r.json()),
+  fetch('data/entries.json').then(r => r.json())
+]).then(([glossary, entries]) => {
+  GALL = glossary;
+  EALL = entries;
+
+  // Build GMAP and CATMAP
+  glossary.forEach(g => {
+    GMAP[g.Code] = g;
+    (g.Categories || []).forEach(cat => {
+      if (!CATMAP[cat]) CATMAP[cat] = [];
+      CATMAP[cat].push(g.Code);
+    });
+  });
+
+  // Populate category dropdown
+  const sel = document.getElementById('g-filter-cat');
+  Object.keys(CATMAP).sort().forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat + ' (' + CATMAP[cat].length + ')';
+    sel.appendChild(opt);
+  });
+
+  applyGFilters();
+});
+</script>
+</body>
+</html>
