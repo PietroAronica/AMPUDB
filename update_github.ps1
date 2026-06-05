@@ -1,17 +1,25 @@
 # AMPUDB — update script (run after any changes)
-# Right-click → "Run with PowerShell", or run from any terminal.
+# Run via update_github.bat
 
-$ErrorActionPreference = "Stop"
+try {
+    $ErrorActionPreference = "Stop"
 
-$siteDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $siteDir
+    $siteDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    Set-Location $siteDir
+    Write-Host "Working in: $siteDir" -ForegroundColor Cyan
 
-Write-Host "Working in: $siteDir" -ForegroundColor Cyan
+    git add .
+    $msg = Read-Host "Commit message (or press Enter for 'Update site')"
+    if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Update site" }
+    git commit -m $msg
+    git push
 
-git add .
-$msg = Read-Host "Commit message (or press Enter for 'Update site')"
-if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Update site" }
-git commit -m $msg
-git push
+    Write-Host "Done!" -ForegroundColor Green
 
-Write-Host "Done!" -ForegroundColor Green
+} catch {
+    Write-Host ""
+    Write-Host "ERROR: $_" -ForegroundColor Red
+}
+
+Write-Host ""
+Read-Host "Press Enter to close"

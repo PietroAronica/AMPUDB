@@ -46,10 +46,6 @@
           <tr>
             <th data-col="Code">Code</th>
             <th data-col="Name">Name</th>
-            <th data-col="DAA"  style="text-align:center">DAA</th>
-            <th data-col="Peptoid" style="text-align:center">Peptoid</th>
-            <th data-col="Charge" style="text-align:center">Charged</th>
-            <th data-col="Alpha amino acid" style="text-align:center">α-AA</th>
             <th data-col="Categories">Categories</th>
           </tr>
         </thead>
@@ -97,6 +93,22 @@
   </div>
 </div>
 
+<!-- Entry detail modal (same as Browse page) -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <h2 id="modal-title">Entry detail</h2>
+      <button class="modal-close" id="modal-close" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <a id="modal-doi-link" class="btn btn-primary" target="_blank" rel="noopener">Open DOI ↗</a>
+      <a id="modal-pubmed-link" class="btn" target="_blank" rel="noopener">PubMed ↗</a>
+      <button class="btn" id="modal-close2">Close</button>
+    </div>
+  </div>
+</div>
+
 <footer>
   AMPUDB · <a href="cite.html">How to cite</a>
 </footer>
@@ -129,17 +141,13 @@ function catTags(cats, clickable=false) {
 function renderGlossary() {
   const tbody = document.getElementById('g-body');
   if (gFiltered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">No entries match.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--text-muted)">No entries match.</td></tr>';
     return;
   }
   tbody.innerHTML = gFiltered.map(g => `
     <tr data-code="${g.Code.replace(/"/g,'&quot;')}" class="clickable-row${g.Code === activePanelCode ? ' row-active' : ''}" title="Click to explore ${g.Code}">
       <td><strong style="font-family:monospace">${g.Code}</strong></td>
       <td>${g.Name}</td>
-      <td style="text-align:center">${dot(g.DAA, '#7c3aed')}</td>
-      <td style="text-align:center">${dot(g.Peptoid, '#0891b2')}</td>
-      <td style="text-align:center">${dot(g.Charge, '#b45309')}</td>
-      <td style="text-align:center">${dot(g['Alpha amino acid'], '#166534')}</td>
       <td>${catTags(g.Categories)}</td>
     </tr>`).join('');
 
@@ -192,6 +200,58 @@ document.getElementById('g-search').addEventListener('input', () => {
   clearTimeout(gt); gt = setTimeout(applyGFilters, 180);
 });
 document.getElementById('g-filter-cat').addEventListener('change', applyGFilters);
+
+// ── Entry detail modal ────────────────────────────────────────────────────────
+function openEntryModal(din) {
+  const e = EALL.find(x => x.DIN === din);
+  if (!e) return;
+  document.getElementById('modal-title').textContent = `${e.Name} (DIN ${e.DIN})`;
+  const doiLink = document.getElementById('modal-doi-link');
+  if (e.Ref) { doiLink.href = 'https://doi.org/' + e.Ref; doiLink.style.display = ''; }
+  else doiLink.style.display = 'none';
+  const pmLink = document.getElementById('modal-pubmed-link');
+  if (e.Ref) { pmLink.href = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(e.Ref); pmLink.style.display = ''; }
+  else pmLink.style.display = 'none';
+
+  const row = (label, val, full=false, extra='') =>
+    `<div class="detail-item${full?' full':''}">
+      <label>${label}</label>
+      <div class="val ${extra}">${val||'—'}</div>
+    </div>`;
+
+  const flag = e.Search_flag ? `<div class="flag-banner">⚠ ${e.Search_flag}</div>` : '';
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="detail-grid">
+      ${row('DIN', e.DIN)}
+      ${row('Name', e.Name)}
+      ${row('Sequence', e.Sequence, true, 'seq-full')}
+      ${row('Unnatural Amino Acids', e['Unnatural Amino Acid(s)'])}
+      ${row('Length', e.Length)}
+      ${row('Charge', e.Charge)}
+      ${row('Spectrum', spectrumBadge(e.Spectrum))}
+      ${row('Activity', activityBadge(e.Activity))}
+      ${row('MIC (min reported)', e.MIC_min_reported)}
+      ${row('MIC (full text)', e.MIC)}
+      ${row('Parent sequence', e.Parent || '—', true, 'seq-full')}
+      ${row('Parent name', e['Name of Parent'])}
+      ${row('Tested against', e['Tested Against'], true)}
+      ${row('MIC notes', e['MIC Notes'], true)}
+      ${row('Annotation', e.Annotation, true)}
+      ${row('Reference (DOI)', e.Ref ? `<a href="https://doi.org/${e.Ref}" target="_blank" rel="noopener">${e.Ref}</a>` : '—')}
+    </div>
+    ${flag}`;
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('modal-close').focus();
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-close2').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 // ── Badge helpers ─────────────────────────────────────────────────────────────
 function spectrumBadge(s) {
@@ -288,14 +348,18 @@ function showPanel(code) {
   } else {
     noneEl.style.display = 'none';
     wrapEl.style.display = '';
-    document.getElementById('g-panel-body').innerHTML = matches.map(e => `
-      <tr>
+    const panelBody = document.getElementById('g-panel-body');
+    panelBody.innerHTML = matches.map(e => `
+      <tr data-din="${e.DIN}" class="clickable-row" title="Click for full details">
         <td class="din">${e.DIN}</td>
         <td class="name">${e.Name}</td>
         <td class="seq" style="font-family:monospace;font-size:.8rem">${truncSeq(e.Sequence)}</td>
         <td>${spectrumBadge(e.Spectrum)}</td>
         <td>${activityBadge(e.Activity)}</td>
       </tr>`).join('');
+    panelBody.querySelectorAll('tr[data-din]').forEach(row => {
+      row.addEventListener('click', () => openEntryModal(row.dataset.din));
+    });
   }
 
   const panel = document.getElementById('g-peptide-panel');
