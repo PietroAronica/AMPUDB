@@ -3,26 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AMPUDB – UAA Glossary</title>
+<title>AMPUDB – UAA Database</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/smiles-drawer@1.2.1/dist/smiles-drawer.min.js"></script>
 </head>
 <body>
 <header>
   <div class="header-inner">
     <div class="site-title">AMPUDB <span>· Antimicrobial Peptides with Unnatural amino acids DataBase</span></div>
     <nav>
-      <a href="index.html">Browse</a>
-      <a href="glossary.html" class="active">Glossary</a>
-      <a href="about.html">About</a>
+      <a href="index.html">AMP Database</a>
+      <a href="glossary.html" class="active">UAA Database</a>
+      <a href="about.html">Help</a>
       <a href="cite.html">Cite</a>
     </nav>
   </div>
 </header>
 
 <div class="page">
+
+  <!-- Tab switcher -->
+  <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+    <button class="tab-btn tab-active" id="tab-db" onclick="switchTab('db')">UAA Database</button>
+    <button class="tab-btn" id="tab-conv" onclick="switchTab('conv')">Naming Conventions</button>
+  </div>
+
+  <!-- ── DATABASE TAB ── -->
+  <div id="view-db">
   <div class="card" style="margin-bottom:1rem;">
     <div style="margin-bottom:.75rem;">
-      <strong>UAA Glossary</strong>
+      <strong>UAA Database</strong>
       <span style="color:var(--text-muted);font-size:.875rem;margin-left:.5rem;">
         Non-natural amino acid codes and classifications used in AMPUDB
       </span>
@@ -54,44 +64,162 @@
     </div>
   </div>
 
-  <!-- UAA detail panel (shown when a UAA row is clicked) -->
+  <!-- UAA detail panel -->
   <div class="card" id="g-peptide-panel" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
-      <strong id="g-panel-title"></strong>
-      <button class="btn" id="g-panel-close" style="padding:.25rem .6rem;font-size:.8rem;">✕ Close</button>
+
+    <!-- Header -->
+    <div class="uaa-panel-header">
+      <div>
+        <span class="uaa-panel-code" id="g-panel-code"></span>
+        <span class="uaa-panel-name" id="g-panel-name"></span>
+      </div>
+      <button class="btn" id="g-panel-close" style="padding:.25rem .6rem;font-size:.8rem;flex-shrink:0;">✕ Close</button>
     </div>
 
-    <!-- Categories for this UAA -->
-    <div id="g-panel-cats-wrap" style="margin-bottom:1rem;display:none;">
-      <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.4rem;">Categories</div>
-      <div id="g-panel-cats"></div>
+    <!-- Structure + Properties -->
+    <div class="uaa-panel-top">
+      <!-- 2D structure -->
+      <div class="uaa-structure-box" id="g-structure-box">
+        <canvas id="g-structure-canvas" width="240" height="190" style="display:none;"></canvas>
+        <div class="uaa-structure-empty" id="g-structure-empty" style="display:none;">
+          No structure available.<br>
+          <span style="font-size:.75rem;">Edit glossary_v5.csv to add SMILES manually.</span>
+        </div>
+      </div>
+
+      <!-- Properties -->
+      <div class="uaa-props">
+        <div class="uaa-prop-row" id="g-prop-aliases-row" style="display:none;">
+          <span class="uaa-prop-label">Also known as</span>
+          <span class="uaa-prop-val" id="g-prop-aliases"></span>
+        </div>
+        <div class="uaa-prop-row" id="g-prop-smiles-row" style="display:none;">
+          <span class="uaa-prop-label">SMILES</span>
+          <span class="uaa-smiles-val" id="g-prop-smiles"></span>
+        </div>
+        <div class="uaa-prop-row" id="g-prop-source-row" style="display:none;">
+          <span class="uaa-prop-label">Structure source</span>
+          <span class="uaa-prop-val" id="g-prop-source"></span>
+        </div>
+        <div class="uaa-prop-row" id="g-prop-cats-row">
+          <span class="uaa-prop-label">Categories</span>
+          <div id="g-panel-cats"></div>
+        </div>
+      </div>
     </div>
 
-    <!-- Sibling UAAs in same categories -->
-    <div id="g-panel-siblings-wrap" style="margin-bottom:1.25rem;display:none;">
-      <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.4rem;">Related UAAs (same category)</div>
+    <!-- Related UAAs -->
+    <div id="g-panel-siblings-wrap" style="display:none;">
+      <hr class="uaa-divider">
+      <div class="uaa-prop-label" style="margin-bottom:.5rem;">Related UAAs (same category)</div>
       <div id="g-panel-siblings"></div>
     </div>
 
-    <!-- Peptides containing this UAA -->
-    <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.4rem;" id="g-panel-pep-label"></div>
-    <p id="g-panel-none" style="color:var(--text-muted);display:none;">No entries use this UAA code.</p>
+    <!-- Peptides -->
+    <hr class="uaa-divider">
+    <div class="uaa-prop-label" style="margin-bottom:.5rem;" id="g-panel-pep-label"></div>
+    <p id="g-panel-none" style="color:var(--text-muted);font-size:.875rem;display:none;">No entries in the database use this UAA code.</p>
     <div class="table-wrap" id="g-panel-wrap" style="display:none;">
       <table id="g-panel-table">
-        <thead>
-          <tr>
-            <th>DIN</th>
-            <th>Name</th>
-            <th>Sequence</th>
-            <th>Spectrum</th>
-            <th>Activity</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>DIN</th><th>Name</th><th>Sequence</th><th>Spectrum</th><th>Activity</th>
+        </tr></thead>
         <tbody id="g-panel-body"></tbody>
       </table>
     </div>
   </div>
 </div>
+
+  </div><!-- end #view-db -->
+
+  <!-- ── NAMING CONVENTIONS TAB ── -->
+  <div id="view-conv" style="display:none;">
+  <div class="card prose">
+    <h1>UAA Naming Conventions</h1>
+    <p style="color:var(--text-muted);font-size:.875rem;">Version 1.1 — June 2026</p>
+
+    <h2>1. General Principles</h2>
+    <p>Every UAA entry has one unique short code used in sequences, one preferred full name, and any number of synonyms — all reported on the residue page. The code is chosen to be unambiguous and concise; the name is chosen for clarity and literature precedence.</p>
+
+    <h2>2. Short Code Format</h2>
+    <p>Standard proteinogenic amino acids use the established three-letter codes (Ala, Gly, Phe, …). All derived codes follow the same capitalisation rule: <strong>first letter uppercase, remaining letters lowercase</strong> (Xxx format).</p>
+    <table><thead><tr><th>✓ Correct</th><th>✗ Avoid</th></tr></thead><tbody>
+      <tr><td><code>MeLeu</code></td><td><code>MeLEU</code></td></tr>
+      <tr><td><code>NMeVal</code></td><td><code>NMEVAL</code></td></tr>
+      <tr><td><code>d-Glu</code></td><td><code>D-GLU</code></td></tr>
+      <tr><td><code>βHis</code></td><td><code>BHIS</code></td></tr>
+    </tbody></table>
+    <p>Use Arabic numerals for ring position prefixes on non-benzene rings and multi-substituted benzene rings: <code>3FTrp</code>, <code>4NH2Pro</code>, <code>3,5FPhe</code>. For a single benzene substituent, use ortho/meta/para notation (see §5).</p>
+
+    <h2>3. Stereochemistry</h2>
+    <p>D-amino acids: prefix <code>d-</code> (lowercase d, hyphen) before the code — <code>d-Ala</code>, <code>d-Phe</code>, <code>d-3OHLeu</code>. For other stereocentres, use <code>allo-</code> for diastereomers at non-α positions: <code>allo-Ile</code>, <code>allo-Thr</code>.</p>
+
+    <h2>4. Peptoids (N-substituted Glycines)</h2>
+    <p>Peptoids carry their sidechain on the nitrogen rather than the α-carbon. Prefix <code>pep-</code> followed by the residue whose sidechain is on the nitrogen. β-Peptoids (N-substituted β-alanines) use <code>β-pep-</code>.</p>
+    <table><thead><tr><th>Code</th><th>Full Name</th><th>Sidechain</th></tr></thead><tbody>
+      <tr><td><code>pep-Phe</code></td><td>peptoid phenylalanine</td><td>benzyl</td></tr>
+      <tr><td><code>pep-Leu</code></td><td>peptoid leucine</td><td>isobutyl</td></tr>
+      <tr><td><code>pep-Arg</code></td><td>peptoid arginine</td><td>3-guanidinopropyl</td></tr>
+      <tr><td><code>pep-4FPhe</code></td><td>N-(4-fluorobenzyl)glycine</td><td>4-fluorobenzyl</td></tr>
+    </tbody></table>
+    <p>When the sidechain does not match any standard amino acid, describe it explicitly: <code>pep-6C</code> (hexyl sidechain).</p>
+
+    <h2>5. Ring Position Notation</h2>
+    <p><strong>Benzene ring — single substituent:</strong> use ortho/meta/para: <code>pClPhe</code>, <code>mFTyr</code>, <code>oFPhe</code>.<br>
+    <strong>Benzene ring — multiple substituents:</strong> use numbers: <code>3,5FPhe</code>, <code>2,6FPhe</code>.<br>
+    <strong>Other ring systems</strong> (proline, tryptophan, histidine, etc.): always use numeric positions: <code>4HypPro</code>, <code>5FTrp</code>, <code>4NH2Pro</code>.</p>
+
+    <h2>6. Sidechain Position Notation (α-amino acids)</h2>
+    <p>Greek letters indicate which sidechain carbon bears a substituent, counted from the α-carbon:</p>
+    <table><thead><tr><th>Letter</th><th>Sidechain position</th><th>Example</th></tr></thead><tbody>
+      <tr><td>β</td><td>C3 (first sidechain carbon)</td><td><code>βOHPhe</code></td></tr>
+      <tr><td>γ</td><td>C4</td><td><code>γFAbu</code></td></tr>
+      <tr><td>δ</td><td>C5</td><td><code>δAva</code></td></tr>
+      <tr><td>ε</td><td>C6</td><td><code>εLys</code></td></tr>
+    </tbody></table>
+    <p>This notation applies only to α-amino acids and is not used for ω-amino acids (see §8).</p>
+
+    <h2>7. N-Methyl and N-Substituted α-Amino Acids</h2>
+    <p>N-methyl L-amino acids: prefix <code>NMe</code> (no hyphen): <code>NMeAla</code>, <code>NMeLeu</code>, <code>NMePhe</code>.<br>
+    N-methyl D-amino acids: <code>NMe-d-Phe</code>, <code>NMe-d-Ala</code>.<br>
+    Other N-substituents described explicitly: <code>NMe2Lys</code>, <code>NBnArg</code>.</p>
+
+    <h2>8. Extended-Backbone Amino Acids</h2>
+    <p><strong>Simple ω-amino acids</strong> (no sidechain): Greek letter indicates backbone length (position of NH₂ from carboxyl carbon).</p>
+    <table><thead><tr><th>Letter</th><th>Backbone carbons</th><th>Example</th></tr></thead><tbody>
+      <tr><td>β</td><td>3</td><td><code>β-Ala</code> (β-alanine)</td></tr>
+      <tr><td>γ</td><td>4</td><td><code>γ-Abu</code> (GABA)</td></tr>
+      <tr><td>δ</td><td>5</td><td><code>δ-Ava</code></td></tr>
+      <tr><td>ε</td><td>6</td><td><code>ε-Ahx</code></td></tr>
+    </tbody></table>
+    <p><strong>Extended backbone WITH sidechain:</strong> prefix with backbone Greek letter, then append sidechain using the standard amino acid name — e.g. <code>β-Phe</code> (3-amino-3-phenylpropionic acid), <code>β-Leu</code>.</p>
+    <p><strong>Sidechain carbon counting for α-amino acids with long chains:</strong> count only carbons beyond the α-carbon — 2-aminooctanoic acid (8 total, 6 in sidechain) → <code>C6</code>.</p>
+
+    <h2>9. Homo- and Nor- Series</h2>
+    <table><thead><tr><th>Relationship</th><th>Prefix</th><th>Example</th></tr></thead><tbody>
+      <tr><td>One CH₂ longer (sidechain)</td><td><code>H-</code> or <code>homo-</code></td><td><code>HPhe</code>, <code>HArg</code></td></tr>
+      <tr><td>One CH₂ shorter</td><td><code>nor-</code></td><td><code>norArg</code></td></tr>
+      <tr><td>Two CH₂ shorter</td><td><code>nor2-</code></td><td><code>nor2Arg</code></td></tr>
+      <tr><td>Straight-chain of branched (legacy)</td><td><code>nor-</code></td><td><code>Nva</code>, <code>Nle</code></td></tr>
+    </tbody></table>
+    <p>Where a traditional name exists (ornithine, phenylglycine, homoserine), always prefer it.</p>
+
+    <h2>10. β-Amino Acids</h2>
+    <p>Prefix <code>β-</code> before the code: <code>β-Ala</code>, <code>β-Phe</code>, <code>β-Lys</code>. The β-homo analogue of an α-amino acid may also be written <code>βhXxx</code> (e.g. <code>βhPhe</code>).</p>
+
+    <h2>11. Dehydro Amino Acids</h2>
+    <p>α,β-dehydro: prefix <code>Δ</code> or <code>Dh</code> — <code>ΔPhe</code>, <code>DhPhe</code>, <code>Dha</code> (dehydroalanine), <code>Dhb</code> (dehydrobutyrine). For other positions, indicate explicitly: <code>DHγAla</code>.</p>
+
+    <h2>12. Acyl-Amino Acids (Lipid Chains on Sidechain Amine)</h2>
+    <table><thead><tr><th>Base residue</th><th>Code format</th><th>Example</th></tr></thead><tbody>
+      <tr><td>Lys (Nε-acyl)</td><td><code>LKn</code></td><td><code>LK12</code> = Nε-lauroyl-Lys</td></tr>
+      <tr><td>D-Lys (Nε-acyl)</td><td><code>d-LKn</code></td><td><code>d-LK8</code></td></tr>
+      <tr><td>Dab (Nγ-acyl)</td><td><code>DACn</code></td><td><code>DAC10</code></td></tr>
+      <tr><td>Dap (Nβ-acyl)</td><td><code>DPCn</code></td><td><code>DPC12</code></td></tr>
+    </tbody></table>
+    <p>n = number of carbons in the acyl chain (including the carbonyl carbon).</p>
+  </div>
+  </div><!-- end #view-conv -->
 
 <!-- Entry detail modal (same as Browse page) -->
 <div class="modal-overlay" id="modal-overlay">
@@ -114,6 +242,13 @@
 </footer>
 
 <script>
+function switchTab(tab) {
+  document.getElementById('view-db').style.display   = tab === 'db'   ? '' : 'none';
+  document.getElementById('view-conv').style.display = tab === 'conv' ? '' : 'none';
+  document.getElementById('tab-db').classList.toggle('tab-active',   tab === 'db');
+  document.getElementById('tab-conv').classList.toggle('tab-active', tab === 'conv');
+}
+
 let GALL = [];
 let EALL = [];    // all peptide entries (for cross-links)
 let GMAP = {};    // code → glossary entry
@@ -271,26 +406,98 @@ function truncSeq(s, n=40) {
   return s && s.length > n ? s.slice(0,n) + '…' : (s||'—');
 }
 
+// ── SmilesDrawer ──────────────────────────────────────────────────────────────
+let smilesDrawer = null;
+function ensureDrawer() {
+  if (!smilesDrawer && typeof SmilesDrawer !== 'undefined') {
+    smilesDrawer = new SmilesDrawer.Drawer({ width: 240, height: 190,
+      bondThickness: 1.0, shortBondWidth: 0.15, bondSpacing: 0.18, isomerism: true });
+  }
+  return smilesDrawer;
+}
+
+function renderStructure(smiles) {
+  const canvas  = document.getElementById('g-structure-canvas');
+  const emptyEl = document.getElementById('g-structure-empty');
+  if (!smiles) {
+    canvas.style.display  = 'none';
+    emptyEl.style.display = '';
+    return;
+  }
+  const drawer = ensureDrawer();
+  if (!drawer) { canvas.style.display = 'none'; emptyEl.style.display = ''; return; }
+  // Clear previous drawing
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  SmilesDrawer.parse(smiles, function(tree) {
+    canvas.style.display  = '';
+    emptyEl.style.display = 'none';
+    drawer.draw(tree, 'g-structure-canvas', 'light', false);
+  }, function() {
+    canvas.style.display  = 'none';
+    emptyEl.style.display = '';
+  });
+}
+
 // ── Detail panel ──────────────────────────────────────────────────────────────
 function showPanel(code) {
   if (activePanelCode === code) { closePanel(); return; }
   activePanelCode = code;
+
+  // Update URL hash for shareable link (no page reload)
+  history.replaceState(null, '', '#' + encodeURIComponent(code));
+
   applyGFilters(); // update row-active highlight
 
-  const g = GMAP[code];
+  const g    = GMAP[code];
   const cats = (g && g.Categories) || [];
 
   // Header
-  const gName = g ? g.Name : code;
-  document.getElementById('g-panel-title').textContent = `${code} — ${gName}`;
+  document.getElementById('g-panel-code').textContent = code;
+  document.getElementById('g-panel-name').textContent = g ? g.Name : '';
 
-  // Categories section
-  const catsWrap = document.getElementById('g-panel-cats-wrap');
-  const catsEl   = document.getElementById('g-panel-cats');
+  // 2D structure
+  renderStructure(g && g.SMILES ? g.SMILES : '');
+
+  // Aliases
+  const aliasRow = document.getElementById('g-prop-aliases-row');
+  const aliasEl  = document.getElementById('g-prop-aliases');
+  const aliases  = (g && g.Aliases) ? g.Aliases.split(';').map(a => a.split('(')[0].trim()).filter(Boolean) : [];
+  if (aliases.length) {
+    aliasEl.textContent = aliases.join(' · ');
+    aliasRow.style.display = '';
+  } else {
+    aliasRow.style.display = 'none';
+  }
+
+  // SMILES
+  const smilesRow = document.getElementById('g-prop-smiles-row');
+  const smilesEl  = document.getElementById('g-prop-smiles');
+  if (g && g.SMILES) {
+    smilesEl.textContent = g.SMILES;
+    smilesRow.style.display = '';
+  } else {
+    smilesRow.style.display = 'none';
+  }
+
+  // Source
+  const sourceRow = document.getElementById('g-prop-source-row');
+  const sourceEl  = document.getElementById('g-prop-source');
+  const src = g && g.Source ? g.Source : '';
+  const cid = g && g.PubChem_CID ? g.PubChem_CID : '';
+  if (src) {
+    let srcText = src;
+    if (cid && src === 'PubChem') srcText += ` (CID ${cid})`;
+    sourceEl.textContent = srcText;
+    sourceRow.style.display = '';
+  } else {
+    sourceRow.style.display = 'none';
+  }
+
+  // Categories (clickable)
+  const catsEl = document.getElementById('g-panel-cats');
   if (cats.length > 0) {
     catsEl.innerHTML = catTags(cats, true);
-    catsWrap.style.display = '';
-    // Allow clicking a category tag to set the filter
     catsEl.querySelectorAll('.cat-tag-btn').forEach(tag => {
       tag.addEventListener('click', () => {
         document.getElementById('g-filter-cat').value = tag.dataset.cat;
@@ -298,31 +505,28 @@ function showPanel(code) {
       });
     });
   } else {
-    catsWrap.style.display = 'none';
+    catsEl.innerHTML = '<span style="color:var(--text-muted);font-size:.8rem;">—</span>';
   }
 
-  // Siblings section: group other UAAs by shared category
+  // Siblings: group by category
   const siblingsWrap = document.getElementById('g-panel-siblings-wrap');
   const siblingsEl   = document.getElementById('g-panel-siblings');
   if (cats.length > 0) {
-    let siblingsHtml = '';
+    let html = '';
     cats.forEach(cat => {
-      const siblings = (CATMAP[cat] || [])
-        .filter(c => c !== code)
-        .sort();
-      if (siblings.length === 0) return;
-      const MAX_SHOW = 12;
-      const shown = siblings.slice(0, MAX_SHOW);
-      const extra = siblings.length - MAX_SHOW;
-      siblingsHtml += `
-        <div style="margin-bottom:.6rem;">
-          <span class="cat-tag" style="margin-right:.4rem;">${cat}</span>
-          ${shown.map(c => `<a class="sibling-link" href="#" data-code="${c}" title="${GMAP[c]?GMAP[c].Name:c}">${c}</a>`).join('')}
-          ${extra > 0 ? `<span style="color:var(--text-muted);font-size:.8rem;"> +${extra} more</span>` : ''}
-        </div>`;
+      const siblings = (CATMAP[cat] || []).filter(c => c !== code).sort();
+      if (!siblings.length) return;
+      const MAX = 14;
+      const shown = siblings.slice(0, MAX);
+      const extra = siblings.length - MAX;
+      html += `<div style="margin-bottom:.5rem;">
+        <span class="cat-tag" style="margin-right:.35rem;">${cat}</span>
+        ${shown.map(c => `<a class="sibling-link" href="#${encodeURIComponent(c)}" data-code="${c}" title="${GMAP[c]?GMAP[c].Name:c}">${c}</a>`).join('')}
+        ${extra > 0 ? `<span style="color:var(--text-muted);font-size:.78rem;"> +${extra} more</span>` : ''}
+      </div>`;
     });
-    if (siblingsHtml) {
-      siblingsEl.innerHTML = siblingsHtml;
+    if (html) {
+      siblingsEl.innerHTML = html;
       siblingsWrap.style.display = '';
       siblingsEl.querySelectorAll('.sibling-link').forEach(a => {
         a.addEventListener('click', ev => { ev.preventDefault(); showPanel(a.dataset.code); });
@@ -334,12 +538,12 @@ function showPanel(code) {
     siblingsWrap.style.display = 'none';
   }
 
-  // Peptides section
+  // Peptides
   const matches = EALL.filter(e =>
     (e['Unnatural Amino Acid(s)'] || '').split(';').map(c => c.trim()).includes(code)
   );
   document.getElementById('g-panel-pep-label').textContent =
-    `Peptides containing ${code} (${matches.length})`;
+    `AMPs containing ${code} (${matches.length})`;
   const noneEl = document.getElementById('g-panel-none');
   const wrapEl = document.getElementById('g-panel-wrap');
   if (matches.length === 0) {
@@ -348,8 +552,7 @@ function showPanel(code) {
   } else {
     noneEl.style.display = 'none';
     wrapEl.style.display = '';
-    const panelBody = document.getElementById('g-panel-body');
-    panelBody.innerHTML = matches.map(e => `
+    document.getElementById('g-panel-body').innerHTML = matches.map(e => `
       <tr data-din="${e.DIN}" class="clickable-row" title="Click for full details">
         <td class="din">${e.DIN}</td>
         <td class="name">${e.Name}</td>
@@ -357,18 +560,19 @@ function showPanel(code) {
         <td>${spectrumBadge(e.Spectrum)}</td>
         <td>${activityBadge(e.Activity)}</td>
       </tr>`).join('');
-    panelBody.querySelectorAll('tr[data-din]').forEach(row => {
+    document.getElementById('g-panel-body').querySelectorAll('tr[data-din]').forEach(row => {
       row.addEventListener('click', () => openEntryModal(row.dataset.din));
     });
   }
 
   const panel = document.getElementById('g-peptide-panel');
   panel.style.display = '';
-  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function closePanel() {
   activePanelCode = null;
+  history.replaceState(null, '', window.location.pathname);
   document.getElementById('g-peptide-panel').style.display = 'none';
   applyGFilters();
 }
@@ -402,6 +606,17 @@ Promise.all([
   });
 
   applyGFilters();
+
+  // Hash routing: open panel if URL contains #Code
+  const hash = decodeURIComponent(window.location.hash.slice(1));
+  if (hash && GMAP[hash]) showPanel(hash);
+});
+
+// Handle back/forward navigation
+window.addEventListener('hashchange', () => {
+  const hash = decodeURIComponent(window.location.hash.slice(1));
+  if (hash && GMAP[hash]) showPanel(hash);
+  else if (!hash && activePanelCode) closePanel();
 });
 </script>
 </body>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AMPUDB – Browse</title>
+<title>AMPUDB – AMP Database</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,9 +12,9 @@
   <div class="header-inner">
     <div class="site-title">AMPUDB <span>· Antimicrobial Peptides with Unnatural amino acids DataBase</span></div>
     <nav>
-      <a href="index.html" class="active">Browse</a>
-      <a href="glossary.html">Glossary</a>
-      <a href="about.html">About</a>
+      <a href="index.html" class="active">AMP Database</a>
+      <a href="glossary.html">UAA Database</a>
+      <a href="about.html">Help</a>
       <a href="cite.html">Cite</a>
     </nav>
   </div>
@@ -108,6 +108,15 @@ let CATMAP = {};  // category → Set of UAA codes
 let filtered = [];
 let sortCol = 'DIN';
 let sortDir = 1;
+
+function uaaLinks(raw) {
+  if (!raw) return '—';
+  return raw.split(';').map(c => {
+    const code = c.trim();
+    if (!code) return '';
+    return `<a class="uaa-code-link" href="glossary.html#${encodeURIComponent(code)}" title="View ${code} in Glossary">${code}</a>`;
+  }).filter(Boolean).join(' ');
+}
 
 function spectrumBadge(s) {
   if (!s) return '<span class="badge badge-empty">—</span>';
@@ -283,7 +292,7 @@ function openModal(din) {
       ${row('DIN', e.DIN)}
       ${row('Name', e.Name)}
       ${row('Sequence', e.Sequence, true, 'seq-full')}
-      ${row('Unnatural Amino Acids', e['Unnatural Amino Acid(s)'])}
+      ${row('Unnatural Amino Acids', uaaLinks(e['Unnatural Amino Acid(s)']))}
       ${row('Length', e.Length)}
       ${row('Charge', e.Charge)}
       ${row('Spectrum', spectrumBadge(e.Spectrum))}

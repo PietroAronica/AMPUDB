@@ -1,4 +1,4 @@
-"""
+r"""
 export_data.py  v2
 Run from the AMPUDB folder (one level above 'site') to regenerate
 site/data/entries.json and site/data/glossary.json from the master CSVs.
@@ -14,8 +14,12 @@ SITE  = pathlib.Path(__file__).parent          # site folder
 DATA  = SITE / 'data'
 DATA.mkdir(exist_ok=True)
 
-MASTER   = BASE / 'master_data' / 'AMPUDB_master_v10.csv'
-GLOSSARY = BASE / 'master_data' / 'AMPUDB_glossary_v4.csv'
+MASTER   = BASE / 'master_data' / 'AMPUDB_master_v19.csv'
+# v6: removed 22 quasi-lipid glossary codes (now base AA + Annotation); renamed 15NNMeGuanC14; MeGly sarcosine alias confirmed
+_g6 = BASE / 'master_data' / 'AMPUDB_glossary_v6.csv'
+_g4 = BASE / 'master_data' / 'AMPUDB_glossary_v4_new.csv'
+GLOSSARY = _g6 if _g6.exists() else _g4
+print(f"Using glossary: {GLOSSARY.name}")
 
 def load_csv(path):
     with open(path, encoding='utf-8-sig', newline='') as f:
@@ -25,10 +29,10 @@ def load_csv(path):
             row[k] = (row[k] or '').strip()
     return rows
 
-# ── Entries ──────────────────────────────────────────────────────────────────
+# -- Entries ------------------------------------------------------------------
 entries = load_csv(MASTER)
 
-# ── Glossary ─────────────────────────────────────────────────────────────────
+# -- Glossary -----------------------------------------------------------------
 glossary_raw = load_csv(GLOSSARY)
 glossary = []
 for row in glossary_raw:
@@ -38,6 +42,9 @@ for row in glossary_raw:
         'Name':             row['Name'],
         'Aliases':          row.get('Aliases', ''),
         'Categories':       cats,
+        'SMILES':           row.get('SMILES', ''),
+        'PubChem_CID':      row.get('PubChem_CID', ''),
+        'Source':           row.get('Source', ''),
         # Boolean flags derived from categories (backwards-compatible with filter logic)
         'UAA':              '1',
         'DAA':              '1' if 'D-configuration' in cats else '0',
