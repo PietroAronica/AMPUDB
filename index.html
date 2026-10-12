@@ -70,8 +70,8 @@
             <th data-col="Charge">Chr</th>
             <th data-col="Spectrum">Spectrum</th>
             <th data-col="Activity">Activity</th>
-            <th data-col="MIC_min_reported">MIC min</th>
-            <th data-col="Ref">DOI</th>
+            <th data-col="mic_summary">MIC min</th>
+            <th data-col="Ref">Ref</th>
           </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -101,6 +101,7 @@
   <a href="cite.html">How to cite</a>
 </footer>
 
+<script src="shared.js"></script>
 <script>
 let ALL = [];
 let GMAP = {};    // UAA code → glossary entry
@@ -134,11 +135,6 @@ function activityBadge(a) {
 function truncSeq(s, n=32) {
   return s.length > n ? s.slice(0,n) + '…' : s;
 }
-function doiLink(ref) {
-  if (!ref) return '—';
-  return `<a href="https://doi.org/${ref}" target="_blank" rel="noopener" title="${ref}"
-    onclick="event.stopPropagation()">↗</a>`;
-}
 
 function renderTable() {
   const tbody = document.getElementById('table-body');
@@ -156,8 +152,8 @@ function renderTable() {
       <td>${e.Charge}</td>
       <td>${spectrumBadge(e.Spectrum)}</td>
       <td>${activityBadge(e.Activity)}</td>
-      <td class="mic">${e.MIC_min_reported || '—'}</td>
-      <td class="ref">${doiLink(e.Ref)}</td>
+      <td class="mic">${micMinDisplay(e)}</td>
+      <td class="ref">${refLink(e.Ref)}</td>
     </tr>`).join('');
 
   tbody.querySelectorAll('tr[data-din]').forEach(row => {
@@ -201,6 +197,13 @@ function applyFilters() {
 
   // Sort
   filtered.sort((a,b) => {
+    if (sortCol === 'mic_summary') {
+      const an = micMinSortValue(a), bn = micMinSortValue(b);
+      if (an == null && bn == null) return 0;
+      if (an == null) return 1;   // blanks sort last regardless of direction
+      if (bn == null) return -1;
+      return (an - bn) * sortDir;
+    }
     let av = a[sortCol] || '', bv = b[sortCol] || '';
     const an = parseFloat(av), bn = parseFloat(bv);
     if (!isNaN(an) && !isNaN(bn)) return (an - bn) * sortDir;
@@ -248,8 +251,10 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 // CSV download helper
 function downloadCSV(rows, filename) {
   const cols = ['DIN','Sequence','Name','Unnatural Amino Acid(s)','Length','Charge',
-                'Spectrum','Activity','MIC_min_reported','MIC','Ref',
-                'Parent','Name of Parent','Tested Against','MIC Notes','Annotation'];
+                'Spectrum','Activity','mic_summary','MIC','Ref',
+                'Parent','Name of Parent','Parentage class','Tested Against','MIC Notes','Annotation',
+                'N-terminus','N-terminus class','C-terminus','C-terminus class',
+                'Topology','Topology notes','Source','Search_flag'];
   const escape = v => '"' + (v||'').replace(/"/g,'""') + '"';
   const lines = [cols.map(escape).join(',')];
   rows.forEach(e => lines.push(cols.map(c => escape(e[c])).join(',')));
@@ -271,12 +276,7 @@ function openModal(din) {
   const e = ALL.find(x => x.DIN === din);
   if (!e) return;
   document.getElementById('modal-title').textContent = `${e.Name} (DIN ${e.DIN})`;
-  const doiLink = document.getElementById('modal-doi-link');
-  if (e.Ref) { doiLink.href = 'https://doi.org/' + e.Ref; doiLink.style.display=''; }
-  else doiLink.style.display = 'none';
-  const pmLink = document.getElementById('modal-pubmed-link');
-  if (e.Ref) { pmLink.href = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(e.Ref); pmLink.style.display=''; }
-  else pmLink.style.display = 'none';
+  setRefButtons(e.Ref);
 
   const row = (label, val, full=false, extra='') =>
     `<div class="detail-item${full?' full':''}">
@@ -297,14 +297,15 @@ function openModal(din) {
       ${row('Charge', e.Charge)}
       ${row('Spectrum', spectrumBadge(e.Spectrum))}
       ${row('Activity', activityBadge(e.Activity))}
-      ${row('MIC (min reported)', e.MIC_min_reported)}
+      ${row('MIC (min reported)', micMinDisplay(e))}
       ${row('MIC (full text)', e.MIC)}
+      ${structureRows(e, row)}
       ${row('Parent sequence', e.Parent || '—', true, 'seq-full')}
       ${row('Parent name', e['Name of Parent'])}
       ${row('Tested against', e['Tested Against'], true)}
       ${row('MIC notes', e['MIC Notes'], true)}
       ${row('Annotation', e.Annotation, true)}
-      ${row('Reference (DOI)', e.Ref ? `<a href="https://doi.org/${e.Ref}" target="_blank" rel="noopener">${e.Ref}</a>` : '—')}
+      ${row('Reference', refDetailHtml(e.Ref))}
     </div>
     ${flag}`;
 

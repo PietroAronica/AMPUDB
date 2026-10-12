@@ -14,11 +14,16 @@ SITE  = pathlib.Path(__file__).parent          # site folder
 DATA  = SITE / 'data'
 DATA.mkdir(exist_ok=True)
 
-MASTER   = BASE / 'master_data' / 'AMPUDB_master_v19.csv'
-# v6: removed 22 quasi-lipid glossary codes (now base AA + Annotation); renamed 15NNMeGuanC14; MeGly sarcosine alias confirmed
-_g6 = BASE / 'master_data' / 'AMPUDB_glossary_v6.csv'
-_g4 = BASE / 'master_data' / 'AMPUDB_glossary_v4_new.csv'
-GLOSSARY = _g6 if _g6.exists() else _g4
+# These two names are the authoritative declaration of which data files are active.
+# Superseded versions live in old_versions/ -- never point at them.
+MASTER   = BASE / 'master_data' / 'AMPUDB_master_v361.csv'   # v361: + Parentage class (v291) column, copied from the AMPUDB working folder 2026-10-12
+GLOSSARY = BASE / 'master_data' / 'AMPUDB_glossary_v39.csv'   # v39, copied from the AMPUDB working folder 2026-10-12
+
+for _p in (MASTER, GLOSSARY):
+    if not _p.exists():
+        raise SystemExit(f"Active data file missing: {_p}\n"
+                         f"Check master_data/ and update MASTER/GLOSSARY at the top of this script.")
+print(f"Using master:   {MASTER.name}")
 print(f"Using glossary: {GLOSSARY.name}")
 
 def load_csv(path):

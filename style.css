@@ -303,3 +303,6 @@ footer {
   .controls { flex-direction: column; align-items: stretch; }
   .results-info { margin-left: 0; }
 }
+
+/* Blank-meaning placeholders in the entry modal ("not stated", "not yet classified") */
+.muted { color: var(--text-muted); }

@@ -241,6 +241,7 @@
   AMPUDB · <a href="cite.html">How to cite</a>
 </footer>
 
+<script src="shared.js"></script>
 <script>
 function switchTab(tab) {
   document.getElementById('view-db').style.display   = tab === 'db'   ? '' : 'none';
@@ -341,12 +342,7 @@ function openEntryModal(din) {
   const e = EALL.find(x => x.DIN === din);
   if (!e) return;
   document.getElementById('modal-title').textContent = `${e.Name} (DIN ${e.DIN})`;
-  const doiLink = document.getElementById('modal-doi-link');
-  if (e.Ref) { doiLink.href = 'https://doi.org/' + e.Ref; doiLink.style.display = ''; }
-  else doiLink.style.display = 'none';
-  const pmLink = document.getElementById('modal-pubmed-link');
-  if (e.Ref) { pmLink.href = 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(e.Ref); pmLink.style.display = ''; }
-  else pmLink.style.display = 'none';
+  setRefButtons(e.Ref);
 
   const row = (label, val, full=false, extra='') =>
     `<div class="detail-item${full?' full':''}">
@@ -366,14 +362,15 @@ function openEntryModal(din) {
       ${row('Charge', e.Charge)}
       ${row('Spectrum', spectrumBadge(e.Spectrum))}
       ${row('Activity', activityBadge(e.Activity))}
-      ${row('MIC (min reported)', e.MIC_min_reported)}
+      ${row('MIC (min reported)', micMinDisplay(e))}
       ${row('MIC (full text)', e.MIC)}
+      ${structureRows(e, row)}
       ${row('Parent sequence', e.Parent || '—', true, 'seq-full')}
       ${row('Parent name', e['Name of Parent'])}
       ${row('Tested against', e['Tested Against'], true)}
       ${row('MIC notes', e['MIC Notes'], true)}
       ${row('Annotation', e.Annotation, true)}
-      ${row('Reference (DOI)', e.Ref ? `<a href="https://doi.org/${e.Ref}" target="_blank" rel="noopener">${e.Ref}</a>` : '—')}
+      ${row('Reference', refDetailHtml(e.Ref))}
     </div>
     ${flag}`;
 
