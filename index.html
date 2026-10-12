@@ -20,7 +20,7 @@
   </div>
 </header>
 
-<div class="page">
+<div class="page page-wide">
   <div class="card" style="margin-bottom:1rem;">
     <div class="controls">
       <div class="search-wrap">
@@ -71,6 +71,9 @@
             <th data-col="Spectrum">Spectrum</th>
             <th data-col="Activity">Activity</th>
             <th data-col="mic_summary">MIC min</th>
+            <th data-col="N-terminus">N-term</th>
+            <th data-col="C-terminus">C-term</th>
+            <th data-col="Topology">Topology</th>
             <th data-col="Ref">Ref</th>
           </tr>
         </thead>
@@ -139,7 +142,7 @@ function truncSeq(s, n=32) {
 function renderTable() {
   const tbody = document.getElementById('table-body');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-muted)">No entries match your search.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:2rem;color:var(--text-muted)">No entries match your search.</td></tr>';
     return;
   }
   tbody.innerHTML = filtered.map(e => `
@@ -153,6 +156,9 @@ function renderTable() {
       <td>${spectrumBadge(e.Spectrum)}</td>
       <td>${activityBadge(e.Activity)}</td>
       <td class="mic">${micMinDisplay(e)}</td>
+      <td class="term" title="${e['N-terminus class']}">${e['N-terminus'] || '—'}</td>
+      <td class="term" title="${e['C-terminus class']}">${e['C-terminus'] || '—'}</td>
+      <td class="topo">${topologyDisplay(e)}</td>
       <td class="ref">${refLink(e.Ref)}</td>
     </tr>`).join('');
 
@@ -205,6 +211,10 @@ function applyFilters() {
       return (an - bn) * sortDir;
     }
     let av = a[sortCol] || '', bv = b[sortCol] || '';
+    if (sortCol === 'Topology') { av = topologyDisplay(a); bv = topologyDisplay(b); }
+    if (sortCol === 'N-terminus' || sortCol === 'C-terminus') {
+      if (!av || !bv) return (!av) - (!bv);   // "not stated" sorts last regardless of direction
+    }
     const an = parseFloat(av), bn = parseFloat(bv);
     if (!isNaN(an) && !isNaN(bn)) return (an - bn) * sortDir;
     return av.localeCompare(bv) * sortDir;
@@ -348,7 +358,7 @@ Promise.all([
   applyFilters();
 }).catch(() => {
   document.getElementById('table-body').innerHTML =
-    '<tr><td colspan="10" style="text-align:center;padding:2rem;color:red">Failed to load data. Make sure you are serving this page via a web server (not opening as a local file).</td></tr>';
+    '<tr><td colspan="13" style="text-align:center;padding:2rem;color:red">Failed to load data. Make sure you are serving this page via a web server (not opening as a local file).</td></tr>';
 });
 </script>
 </body>

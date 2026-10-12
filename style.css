@@ -47,6 +47,7 @@ nav a.active { background: rgba(255,255,255,.2); color: #fff; }
 
 /* ── Page container ────────────────────────────────────────────────────── */
 .page { max-width: 1200px; margin: 1.5rem auto; padding: 0 1.5rem 3rem; }
+.page-wide { max-width: 1600px; }   /* entries table: 13 columns since the termini/topology columns */
 
 /* ── Cards ─────────────────────────────────────────────────────────────── */
 .card {
@@ -114,11 +115,13 @@ tbody tr.row-active { background: var(--primary-light); outline: 2px solid var(-
 td { padding: .6rem .85rem; vertical-align: top; }
 td.din    { color: var(--text-muted); font-size: .8rem; width: 50px; }
 td.seq    { font-family: 'Courier New', monospace; font-size: .8rem;
-            max-width: 220px; word-break: break-all; }
+            min-width: 160px; max-width: 220px; word-break: break-all; }
 td.name   { font-weight: 500; max-width: 150px; }
 td.nnaa   { font-size: .8rem; color: var(--text-muted); max-width: 130px; }
 td.mic    { white-space: nowrap; font-size: .82rem; }
 td.ref    { white-space: nowrap; }
+td.term   { font-size: .8rem; max-width: 110px; }
+td.topo   { font-size: .8rem; max-width: 140px; }
 
 /* ── Badges ─────────────────────────────────────────────────────────────── */
 .badge {
